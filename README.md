@@ -475,14 +475,14 @@ It appears that the count is equal for all columns, likely no missing data exist
 
 ```python
 # drop all NaN rows
-df = df.dropna()
+#df = df.dropna()
 ```
 
 In the case of the dataset file containing other specific marking as null indicator, then use the following code to load the data again, where, in this example, converts all "?" cells to NaN.  
 
 
 ```python
-df = pd.read_csv("Metro_Interstate_Traffic_Volume.csv", na_values = "?", na_filter = True)
+#df = pd.read_csv("Metro_Interstate_Traffic_Volume.csv", na_values = "?", na_filter = True)
 ```
 
 Next, there seems to be some errornous data to take care of.
@@ -716,7 +716,6 @@ Split the dataset into two, one is for the learning features (input), one is for
 ```python
 # A list of features (columns) from the dataset
 feature_list = ['holiday','temp', 'rain_1h', 'snow_1h', 'clouds_all', 'weather_main', 'hour']
-#feature_list = ['hour']
 
 # The ML will learn that these factors...
 features = df[feature_list].values
@@ -1348,7 +1347,7 @@ for x in score_dict:
     Keras NN  :  76.92 %
     
 
-### Final Remark
+### Comment
 
 This is my first time building an ML project using a "raw" dataset. 
 As mentioned above, there are a few concerns with the way I am using the dataset. It could be instead:
@@ -1360,3 +1359,436 @@ As mentioned above, there are a few concerns with the way I am using the dataset
 3) put weekday / weekend as a feature
 
 Being new to this field, I can only do so much for now. I might come back to it later.
+
+---
+
+## Update (1)
+
+After discussing with Denchi (https://github.com/DenchiSoft), who further looked into the effects of month, day, week_of_day, factors, there seems to be a significant improvement to the accuracy.
+
+Let's give it a try.
+
+Append day of week data to the dataframe.
+
+### Dataframe Modification
+
+
+```python
+# Loop through the data and modify
+print("----- Appeneding dayofweek ---------- ")
+for x,y in df.iterrows():
+    # Convert string date_time into a timestamp data
+    now = datetime.datetime.strptime(y['date_time'], '%Y-%m-%d %H:%M:%S')
+
+    # append time data column to the dataframe
+    df.at[x, 'dayofweek'] = now.weekday()
+    
+    
+    
+df['dayofweek'] = df['dayofweek'].astype(np.int64)
+        
+print("----- ... Done ----- ")
+```
+
+    ----- Appeneding dayofweek ---------- 
+    ----- ... Done ----- 
+    
+
+### Feature List Modification
+
+
+```python
+# A list of features (columns) from the dataset
+feature_list2 = ['holiday','temp', 'rain_1h', 'snow_1h', 'clouds_all', 'weather_main', 'hour','day','month', 'dayofweek']
+
+# The ML will learn that these factors...
+features2 = df[feature_list2].values
+print ('Features:\n', feature_list2)
+print (features2[:10])
+```
+
+    Features:
+     ['holiday', 'temp', 'rain_1h', 'snow_1h', 'clouds_all', 'weather_main', 'hour', 'day', 'month', 'dayofweek']
+    [[0.0 288.28 0.0 0.0 40 1.0 9 2 10 1]
+     [0.0 289.36 0.0 0.0 75 1.0 10 2 10 1]
+     [0.0 289.58 0.0 0.0 90 1.0 11 2 10 1]
+     [0.0 290.13 0.0 0.0 90 1.0 12 2 10 1]
+     [0.0 291.14 0.0 0.0 75 1.0 13 2 10 1]
+     [0.0 291.72 0.0 0.0 1 0.0 14 2 10 1]
+     [0.0 293.17 0.0 0.0 1 0.0 15 2 10 1]
+     [0.0 293.86 0.0 0.0 1 0.0 16 2 10 1]
+     [0.0 294.14 0.0 0.0 20 1.0 17 2 10 1]
+     [0.0 293.1 0.0 0.0 20 1.0 18 2 10 1]]
+    
+
+### Re-scale Features
+
+
+```python
+scaled_features2 = scaler.fit_transform(features2)
+print ('Features:\n', feature_list2)
+print(scaled_features2[:10])
+```
+
+    Features:
+     ['holiday', 'temp', 'rain_1h', 'snow_1h', 'clouds_all', 'weather_main', 'hour', 'day', 'month', 'dayofweek']
+    [[0.         0.67321536 0.         0.         0.4        0.1
+      0.39130435 0.03333333 0.81818182 0.16666667]
+     [0.         0.68941212 0.         0.         0.75       0.1
+      0.43478261 0.03333333 0.81818182 0.16666667]
+     [0.         0.69271146 0.         0.         0.9        0.1
+      0.47826087 0.03333333 0.81818182 0.16666667]
+     [0.         0.70095981 0.         0.         0.9        0.1
+      0.52173913 0.03333333 0.81818182 0.16666667]
+     [0.         0.71610678 0.         0.         0.75       0.1
+      0.56521739 0.03333333 0.81818182 0.16666667]
+     [0.         0.72480504 0.         0.         0.01       0.
+      0.60869565 0.03333333 0.81818182 0.16666667]
+     [0.         0.74655069 0.         0.         0.01       0.
+      0.65217391 0.03333333 0.81818182 0.16666667]
+     [0.         0.75689862 0.         0.         0.01       0.
+      0.69565217 0.03333333 0.81818182 0.16666667]
+     [0.         0.76109778 0.         0.         0.2        0.1
+      0.73913043 0.03333333 0.81818182 0.16666667]
+     [0.         0.7455009  0.         0.         0.2        0.1
+      0.7826087  0.03333333 0.81818182 0.16666667]]
+    
+
+### Reallocating Training and Test Data
+
+
+```python
+X_train2, X_test2, y_train2, y_test2 = train_test_split(scaled_features2, targets, train_size=0.75, random_state=77777)
+
+#Scaling
+scaled_X_train2 = scaler.fit_transform(X_train2)
+scaled_X_test2 = scaler.transform(X_test2)
+```
+
+### Keras NN (2)
+
+
+```python
+sess = tf.Session(config=config)
+set_session(sess)  # set this TensorFlow session as the default session for Keras
+```
+
+
+```python
+model = Sequential()
+model.add(Dense(10, activation='relu', input_shape=(10,)))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(4, activation='softmax'))
+```
+
+
+```python
+model.summary()
+```
+
+    _________________________________________________________________
+    Layer (type)                 Output Shape              Param #   
+    =================================================================
+    dense_9 (Dense)              (None, 10)                110       
+    _________________________________________________________________
+    dense_10 (Dense)             (None, 32)                352       
+    _________________________________________________________________
+    dense_11 (Dense)             (None, 4)                 132       
+    =================================================================
+    Total params: 594
+    Trainable params: 594
+    Non-trainable params: 0
+    _________________________________________________________________
+    
+
+
+```python
+model.compile(loss='sparse_categorical_crossentropy',
+              optimizer='Adam',
+              metrics=['accuracy'])
+```
+
+
+```python
+history = model.fit(scaled_X_train2, y_train2,
+                    batch_size=10,
+                    epochs=50,
+                    verbose=2,
+                    validation_data=(scaled_X_test2, y_test2))
+```
+
+    Train on 36144 samples, validate on 12049 samples
+    Epoch 1/50
+     - 8s - loss: 0.8209 - acc: 0.6832 - val_loss: 0.6162 - val_acc: 0.7588
+    Epoch 2/50
+     - 7s - loss: 0.5804 - acc: 0.7666 - val_loss: 0.5411 - val_acc: 0.7813
+    Epoch 3/50
+     - 7s - loss: 0.5203 - acc: 0.7943 - val_loss: 0.4911 - val_acc: 0.8093
+    Epoch 4/50
+     - 7s - loss: 0.4760 - acc: 0.8129 - val_loss: 0.4548 - val_acc: 0.8167
+    Epoch 5/50
+     - 7s - loss: 0.4471 - acc: 0.8235 - val_loss: 0.4324 - val_acc: 0.8363
+    Epoch 6/50
+     - 7s - loss: 0.4276 - acc: 0.8368 - val_loss: 0.4078 - val_acc: 0.8567
+    Epoch 7/50
+     - 7s - loss: 0.4133 - acc: 0.8467 - val_loss: 0.4055 - val_acc: 0.8425
+    Epoch 8/50
+     - 7s - loss: 0.4018 - acc: 0.8533 - val_loss: 0.4117 - val_acc: 0.8440
+    Epoch 9/50
+     - 7s - loss: 0.3938 - acc: 0.8567 - val_loss: 0.4042 - val_acc: 0.8487
+    Epoch 10/50
+     - 7s - loss: 0.3866 - acc: 0.8617 - val_loss: 0.3885 - val_acc: 0.8520
+    Epoch 11/50
+     - 7s - loss: 0.3807 - acc: 0.8630 - val_loss: 0.3742 - val_acc: 0.8657
+    Epoch 12/50
+     - 7s - loss: 0.3745 - acc: 0.8658 - val_loss: 0.3749 - val_acc: 0.8684
+    Epoch 13/50
+     - 7s - loss: 0.3690 - acc: 0.8686 - val_loss: 0.3723 - val_acc: 0.8548
+    Epoch 14/50
+     - 7s - loss: 0.3639 - acc: 0.8720 - val_loss: 0.3520 - val_acc: 0.8734
+    Epoch 15/50
+     - 7s - loss: 0.3572 - acc: 0.8727 - val_loss: 0.3495 - val_acc: 0.8831
+    Epoch 16/50
+     - 7s - loss: 0.3518 - acc: 0.8758 - val_loss: 0.3461 - val_acc: 0.8810
+    Epoch 17/50
+     - 7s - loss: 0.3481 - acc: 0.8769 - val_loss: 0.3405 - val_acc: 0.8865
+    Epoch 18/50
+     - 7s - loss: 0.3436 - acc: 0.8774 - val_loss: 0.3331 - val_acc: 0.8867
+    Epoch 19/50
+     - 7s - loss: 0.3389 - acc: 0.8787 - val_loss: 0.3480 - val_acc: 0.8649
+    Epoch 20/50
+     - 7s - loss: 0.3357 - acc: 0.8804 - val_loss: 0.3433 - val_acc: 0.8776
+    Epoch 21/50
+     - 7s - loss: 0.3336 - acc: 0.8811 - val_loss: 0.3415 - val_acc: 0.8752
+    Epoch 22/50
+     - 7s - loss: 0.3314 - acc: 0.8835 - val_loss: 0.3381 - val_acc: 0.8792
+    Epoch 23/50
+     - 7s - loss: 0.3294 - acc: 0.8824 - val_loss: 0.3293 - val_acc: 0.8865
+    Epoch 24/50
+     - 7s - loss: 0.3277 - acc: 0.8835 - val_loss: 0.3280 - val_acc: 0.8809
+    Epoch 25/50
+     - 7s - loss: 0.3254 - acc: 0.8848 - val_loss: 0.3308 - val_acc: 0.8860
+    Epoch 26/50
+     - 7s - loss: 0.3244 - acc: 0.8850 - val_loss: 0.3288 - val_acc: 0.8773
+    Epoch 27/50
+     - 7s - loss: 0.3254 - acc: 0.8829 - val_loss: 0.3489 - val_acc: 0.8672
+    Epoch 28/50
+     - 7s - loss: 0.3225 - acc: 0.8844 - val_loss: 0.3295 - val_acc: 0.8800
+    Epoch 29/50
+     - 7s - loss: 0.3232 - acc: 0.8841 - val_loss: 0.3297 - val_acc: 0.8838
+    Epoch 30/50
+     - 7s - loss: 0.3217 - acc: 0.8847 - val_loss: 0.3228 - val_acc: 0.8893
+    Epoch 31/50
+     - 7s - loss: 0.3193 - acc: 0.8855 - val_loss: 0.3157 - val_acc: 0.8913
+    Epoch 32/50
+     - 7s - loss: 0.3191 - acc: 0.8853 - val_loss: 0.3207 - val_acc: 0.8863
+    Epoch 33/50
+     - 8s - loss: 0.3189 - acc: 0.8861 - val_loss: 0.3217 - val_acc: 0.8885
+    Epoch 34/50
+     - 7s - loss: 0.3186 - acc: 0.8855 - val_loss: 0.3322 - val_acc: 0.8824
+    Epoch 35/50
+     - 7s - loss: 0.3179 - acc: 0.8864 - val_loss: 0.3438 - val_acc: 0.8718
+    Epoch 36/50
+     - 7s - loss: 0.3163 - acc: 0.8871 - val_loss: 0.3155 - val_acc: 0.8908
+    Epoch 37/50
+     - 7s - loss: 0.3171 - acc: 0.8855 - val_loss: 0.3334 - val_acc: 0.8756
+    Epoch 38/50
+     - 7s - loss: 0.3164 - acc: 0.8869 - val_loss: 0.3259 - val_acc: 0.8811
+    Epoch 39/50
+     - 7s - loss: 0.3150 - acc: 0.8867 - val_loss: 0.3256 - val_acc: 0.8843
+    Epoch 40/50
+     - 7s - loss: 0.3157 - acc: 0.8856 - val_loss: 0.3643 - val_acc: 0.8587
+    Epoch 41/50
+     - 8s - loss: 0.3160 - acc: 0.8864 - val_loss: 0.3148 - val_acc: 0.8875
+    Epoch 42/50
+     - 7s - loss: 0.3159 - acc: 0.8861 - val_loss: 0.3128 - val_acc: 0.8866
+    Epoch 43/50
+     - 7s - loss: 0.3152 - acc: 0.8870 - val_loss: 0.3137 - val_acc: 0.8899
+    Epoch 44/50
+     - 7s - loss: 0.3142 - acc: 0.8879 - val_loss: 0.3238 - val_acc: 0.8796
+    Epoch 45/50
+     - 7s - loss: 0.3132 - acc: 0.8857 - val_loss: 0.3237 - val_acc: 0.8812
+    Epoch 46/50
+     - 7s - loss: 0.3122 - acc: 0.8871 - val_loss: 0.3113 - val_acc: 0.8924
+    Epoch 47/50
+     - 7s - loss: 0.3129 - acc: 0.8880 - val_loss: 0.3179 - val_acc: 0.8853
+    Epoch 48/50
+     - 7s - loss: 0.3120 - acc: 0.8886 - val_loss: 0.3150 - val_acc: 0.8853
+    Epoch 49/50
+     - 7s - loss: 0.3112 - acc: 0.8888 - val_loss: 0.3100 - val_acc: 0.8876
+    Epoch 50/50
+     - 8s - loss: 0.3106 - acc: 0.8876 - val_loss: 0.3275 - val_acc: 0.8829
+    
+
+
+```python
+history = model.fit(scaled_X_train2, y_train2,
+                    batch_size=10,
+                    epochs=50,
+                    verbose=2,
+                    validation_data=(scaled_X_test2, y_test2))
+```
+
+    Train on 36144 samples, validate on 12049 samples
+    Epoch 1/50
+     - 8s - loss: 0.3103 - acc: 0.8896 - val_loss: 0.3136 - val_acc: 0.8831
+    Epoch 2/50
+     - 8s - loss: 0.3108 - acc: 0.8875 - val_loss: 0.3335 - val_acc: 0.8802
+    Epoch 3/50
+     - 8s - loss: 0.3109 - acc: 0.8878 - val_loss: 0.3379 - val_acc: 0.8706
+    Epoch 4/50
+     - 8s - loss: 0.3098 - acc: 0.8887 - val_loss: 0.3352 - val_acc: 0.8710
+    Epoch 5/50
+     - 8s - loss: 0.3092 - acc: 0.8890 - val_loss: 0.3130 - val_acc: 0.8868
+    Epoch 6/50
+     - 8s - loss: 0.3091 - acc: 0.8877 - val_loss: 0.3101 - val_acc: 0.8888
+    Epoch 7/50
+     - 8s - loss: 0.3094 - acc: 0.8876 - val_loss: 0.3125 - val_acc: 0.8890
+    Epoch 8/50
+     - 8s - loss: 0.3083 - acc: 0.8888 - val_loss: 0.3087 - val_acc: 0.8887
+    Epoch 9/50
+     - 8s - loss: 0.3084 - acc: 0.8880 - val_loss: 0.3142 - val_acc: 0.8851
+    Epoch 10/50
+     - 8s - loss: 0.3074 - acc: 0.8898 - val_loss: 0.3163 - val_acc: 0.8875
+    Epoch 11/50
+     - 8s - loss: 0.3067 - acc: 0.8886 - val_loss: 0.3197 - val_acc: 0.8794
+    Epoch 12/50
+     - 8s - loss: 0.3074 - acc: 0.8881 - val_loss: 0.3091 - val_acc: 0.8885
+    Epoch 13/50
+     - 7s - loss: 0.3074 - acc: 0.8887 - val_loss: 0.3245 - val_acc: 0.8796
+    Epoch 14/50
+     - 8s - loss: 0.3066 - acc: 0.8880 - val_loss: 0.3126 - val_acc: 0.8835
+    Epoch 15/50
+     - 7s - loss: 0.3051 - acc: 0.8883 - val_loss: 0.3056 - val_acc: 0.8890
+    Epoch 16/50
+     - 7s - loss: 0.3058 - acc: 0.8884 - val_loss: 0.3075 - val_acc: 0.8874
+    Epoch 17/50
+     - 7s - loss: 0.3044 - acc: 0.8882 - val_loss: 0.3095 - val_acc: 0.8893
+    Epoch 18/50
+     - 8s - loss: 0.3043 - acc: 0.8884 - val_loss: 0.3098 - val_acc: 0.8881
+    Epoch 19/50
+     - 8s - loss: 0.3034 - acc: 0.8886 - val_loss: 0.3030 - val_acc: 0.8919
+    Epoch 20/50
+     - 7s - loss: 0.3032 - acc: 0.8888 - val_loss: 0.3215 - val_acc: 0.8860
+    Epoch 21/50
+     - 7s - loss: 0.3022 - acc: 0.8905 - val_loss: 0.3003 - val_acc: 0.8914
+    Epoch 22/50
+     - 7s - loss: 0.3009 - acc: 0.8891 - val_loss: 0.3262 - val_acc: 0.8811
+    Epoch 23/50
+     - 7s - loss: 0.3012 - acc: 0.8902 - val_loss: 0.3033 - val_acc: 0.8882
+    Epoch 24/50
+     - 8s - loss: 0.3016 - acc: 0.8901 - val_loss: 0.3042 - val_acc: 0.8890
+    Epoch 25/50
+     - 8s - loss: 0.3008 - acc: 0.8893 - val_loss: 0.2999 - val_acc: 0.8923
+    Epoch 26/50
+     - 8s - loss: 0.2992 - acc: 0.8908 - val_loss: 0.3193 - val_acc: 0.8793
+    Epoch 27/50
+     - 8s - loss: 0.2989 - acc: 0.8896 - val_loss: 0.3009 - val_acc: 0.8865
+    Epoch 28/50
+     - 7s - loss: 0.2987 - acc: 0.8892 - val_loss: 0.2994 - val_acc: 0.8860
+    Epoch 29/50
+     - 7s - loss: 0.2975 - acc: 0.8925 - val_loss: 0.3040 - val_acc: 0.8899
+    Epoch 30/50
+     - 7s - loss: 0.2974 - acc: 0.8909 - val_loss: 0.3109 - val_acc: 0.8836
+    Epoch 31/50
+     - 7s - loss: 0.2974 - acc: 0.8912 - val_loss: 0.3132 - val_acc: 0.8807
+    Epoch 32/50
+     - 7s - loss: 0.2958 - acc: 0.8909 - val_loss: 0.3037 - val_acc: 0.8892
+    Epoch 33/50
+     - 7s - loss: 0.2952 - acc: 0.8917 - val_loss: 0.3011 - val_acc: 0.8841
+    Epoch 34/50
+     - 7s - loss: 0.2963 - acc: 0.8902 - val_loss: 0.3128 - val_acc: 0.8842
+    Epoch 35/50
+     - 7s - loss: 0.2948 - acc: 0.8909 - val_loss: 0.3005 - val_acc: 0.8902
+    Epoch 36/50
+     - 7s - loss: 0.2943 - acc: 0.8917 - val_loss: 0.3129 - val_acc: 0.8864
+    Epoch 37/50
+     - 8s - loss: 0.2938 - acc: 0.8914 - val_loss: 0.3057 - val_acc: 0.8868
+    Epoch 38/50
+     - 7s - loss: 0.2936 - acc: 0.8891 - val_loss: 0.3049 - val_acc: 0.8840
+    Epoch 39/50
+     - 8s - loss: 0.2937 - acc: 0.8899 - val_loss: 0.3016 - val_acc: 0.8861
+    Epoch 40/50
+     - 8s - loss: 0.2950 - acc: 0.8902 - val_loss: 0.3011 - val_acc: 0.8909
+    Epoch 41/50
+     - 8s - loss: 0.2929 - acc: 0.8909 - val_loss: 0.3083 - val_acc: 0.8887
+    Epoch 42/50
+     - 8s - loss: 0.2924 - acc: 0.8918 - val_loss: 0.2949 - val_acc: 0.8907
+    Epoch 43/50
+     - 8s - loss: 0.2912 - acc: 0.8914 - val_loss: 0.3132 - val_acc: 0.8808
+    Epoch 44/50
+     - 8s - loss: 0.2915 - acc: 0.8917 - val_loss: 0.2998 - val_acc: 0.8878
+    Epoch 45/50
+     - 9s - loss: 0.2906 - acc: 0.8913 - val_loss: 0.2955 - val_acc: 0.8903
+    Epoch 46/50
+     - 8s - loss: 0.2904 - acc: 0.8907 - val_loss: 0.3011 - val_acc: 0.8907
+    Epoch 47/50
+     - 8s - loss: 0.2904 - acc: 0.8908 - val_loss: 0.2947 - val_acc: 0.8893
+    Epoch 48/50
+     - 8s - loss: 0.2895 - acc: 0.8922 - val_loss: 0.3064 - val_acc: 0.8856
+    Epoch 49/50
+     - 8s - loss: 0.2905 - acc: 0.8920 - val_loss: 0.2974 - val_acc: 0.8914
+    Epoch 50/50
+     - 8s - loss: 0.2897 - acc: 0.8907 - val_loss: 0.2943 - val_acc: 0.8943
+    
+
+
+```python
+# evaluate the keras model
+_, accuracy = model.evaluate(scaled_X_test2, y_test2, verbose=0)
+
+print(accuracy)
+score_dict['Keras NN (2)'] = accuracy
+```
+
+    0.8943481
+    
+
+The result of NN has improved significantly. 
+
+### Decision Tree (2)
+
+
+```python
+clf3 = DecisionTreeClassifier(random_state=1)
+clf3 = clf3.fit(X_train2,y_train2)
+
+score_dict['Tree Decision Classifier2'] = clf3.score(X_test2, y_test2)
+print (score_dict['Tree Decision Classifier2'])
+```
+
+    0.8928541787700224
+    
+
+## Results
+
+
+```python
+for x in score_dict:
+    print (x, " : ", round((score_dict[x] * 100),2), "%")
+    if (x == 'Keras NN'):
+        print ("--------")
+```
+
+    Tree Decision Classifier  :  77.14 %
+    K-Fold Cross Validation  :  74.33 %
+    Random Forest Classifier  :  75.69 %
+    SVM.SVC  :  68.27 %
+    K-Nearest-Neighbors  :  76.97 %
+    Naive Bayes  :  42.67 %
+    SVM with RBF kernel  :  74.01 %
+    SVM with Poly kernel  :  65.45 %
+    Logistic Regression  :  59.99 %
+    Keras NN  :  76.92 %
+    --------
+    Keras NN (2)  :  89.43 %
+    Tree Decision Classifier2  :  89.29 %
+    
+
+## Ending Remark
+
+Although improved numbers, I am unsure if this approach is overfitting. This is training the machine to read into exact day in a year to compare data with, which there are only 3 years record in the dataset. There are only 365 days in a year, so there wouldn't be a new "day" for the algorithm to generalize to (except leap year). So continue feeding more years of record to the dataset may eventually become more reliable. There's also a concern that society and human behavior may change significantly over a 3 to 5 years time. For the algoirthm to predict a given day's traffic, it learned to base the prediction on the exact day in a year, but it only has 3 to 5 data that is still valid, whereas older than that might be "expired".
+
+If we only take the "month" factor, it would be generalizing data within that month. Would that be a better way to classify the 365 days into 12 classes? However, the algorithm would still be overlook factors of specific days, such as Halloween, Cultural festival, Black Friday (sale). These non-holiday day data would spike the traffic, but then the effect would be spreaded out through the whole month as the result of classification.
+
+Perhaps "week of the month" would be a fair middle ground. Or, simply add a new feature "has_event" (bool) or "event_day"(nomial) may already make a significant improvement. 
